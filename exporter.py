@@ -7,11 +7,77 @@
 import sys
 import os
 from collections import OrderedDict, defaultdict
+from HTMLParser import HTMLParser
 try:
     from xml.etree import cElementTree as ET
 except ImportError:
     from xml.etree import ElementTree as ET
 
+class HtmlPreProcessor(HTMLParser):
+    """Replaces <pre> tags with markdown code blocks
+
+    Pass in the html with `feed`, and read out the markdownified junk with
+    `readmd()`.
+
+    This class expects *invalid* HTML: the html fragments stored by WordPress
+    in the database, with double-newlines instead of <p> tags, and no actual
+    <html> or <body> elements.
+
+    This class takes advantage of the fact that HTML is actually valid
+    markdown, and does't do much processing, letting `handle_data` just store
+    more or less everything that we get.
+    """
+    def __init__(self):
+        HTMLParser.__init__(self)
+        self.buffer = ""
+        self.in_pre = False
+
+    def reset(self):
+        HTMLParser.reset(self)
+        self.buffer = ""
+        self.in_pre = False
+
+    def readmd(self):
+        return self.buffer
+
+    def handle_data(self, data):
+        """Put all of the processed data into a buffer
+
+        While this class doesn't actually do much processing, this is where
+        the result of it goes.
+        """
+        self.buffer += data
+
+    def handle_entityref(self, name):
+        entity = "&%s;" % name
+        if self.in_pre:
+            self.handle_data(entity)
+        else:
+            self.handle_data(self.unescape(entity))
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'pre':
+            self.in_pre = True
+            for attr in attrs:
+                if attr[0].lower() == 'lang':
+                    # pygments keys are always lowercase, this increases the
+                    # chances that pre-existing languages will be recognized
+                    language = attr[1].lower()
+                    self.handle_data("\n~~~ { %s }\n" % language)
+                    break
+            else:
+                self.handle_data("\n~~~\n")
+        else:
+            # pass the data through
+            atts = ' '.join('%s="%s"' % (a, v) for a, v in attrs)
+            self.handle_data("<%s %s>" % (tag, atts))
+
+    def handle_endtag(self, tag):
+        if tag == 'pre':
+            self.in_pre = False
+            self.handle_data("\n~~~")
+        else:
+            self.handle_data("</%s>" % tag)
 
 def export_mynt(posts, base_dir):
     """Write blog stuff to mynt-like files
@@ -35,6 +101,8 @@ tags: %(tags)s
 """
     opj = os.path.join
 
+    processor = HtmlPreProcessor()
+
     for post in posts:
         if post['content'] is None:
             continue
@@ -44,6 +112,11 @@ tags: %(tags)s
         # yaml has weird ideas about escape chars
         post['title'] = repr(post['title']).replace(
             r"\'", "''").replace("\\", "")
+
+        processor.reset()
+        processor.feed(post['content'])
+        post['content'] = processor.readmd()
+
         with open(opj(base_dir, filename), 'w') as fh:
             out = template % post
             fh.write(out.encode('utf-8'))
