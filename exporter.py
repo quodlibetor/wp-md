@@ -109,6 +109,11 @@ tags: %(tags)s
         filename = post['date'] + '-' + post['title'] + '.md'
         filename = filename.replace(' ', '-').replace('/', '+')
 
+        # wordpress creates drafts with statuses draft or auto-draft
+        # mynt ignores files that start with an underscore
+        if 'draft' in post['status']:
+            filename = '_' + filename
+
         # yaml has weird ideas about escape chars
         post['title'] = repr(post['title']).replace(
             r"\'", "''").replace("\\", "")
