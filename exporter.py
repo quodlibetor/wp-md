@@ -1,6 +1,8 @@
 #!/usr/bin/env python
 
-"""Convert MySQL database into Markdown with YAML frontmatter.
+"""Convert WordPress data from xml into Markdown with YAML frontmatter.
+
+    usage:    exporter.py blog.xml output_dir/
 """
 import sys
 import os
@@ -38,6 +40,8 @@ tags: %(tags)s
             continue
         filename = post['date'] + '-' + post['title'] + '.md'
         filename = filename.replace(' ', '-').replace('/', '+')
+
+        # yaml has weird ideas about escape chars
         post['title'] = repr(post['title']).replace(
             r"\'", "''").replace("\\", "")
         with open(opj(base_dir, filename), 'w') as fh:
@@ -110,6 +114,10 @@ def main_xml(fname, outdir):
     export_mynt(get_props_from_wp_xml(root), outdir)
 
 if __name__ == '__main__':
+    if len(sys.argv) < 3:
+        print __doc__
+        exit(1)
+
     thefile = sys.argv[1]
     outdir  = sys.argv[2]
     main_xml(thefile, outdir)
