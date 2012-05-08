@@ -166,14 +166,18 @@ def get_props_from_wp_xml(root):
     for el in els:
         id = el.find("./column[@name='ID']").text
         post_type = el.find("./column[@name='post_type']").text
+        status = el.find("./column[@name='post_status']").text,
         if post_type == 'revision':
             id = el.find("./column[@name='post_parent']").text
+            if status == u'inherit':
+                status = posts[id][u'status']
 
         posts[id] = {
             u'date': el.find("./column[@name='post_date']").text,
             u'author': el.find("./column[@name='post_author']").text,
             u'content': el.find("./column[@name='post_content']").text,
             u'title': el.find("./column[@name='post_title']").text,
+            u'status': status,
             u'tags': post_tags[id]
             }
 
