@@ -6,6 +6,7 @@
 """
 import sys
 import os
+import re
 from collections import OrderedDict, defaultdict
 from HTMLParser import HTMLParser
 try:
@@ -31,6 +32,7 @@ class HtmlPreProcessor(HTMLParser):
         HTMLParser.__init__(self)
         self.buffer = ""
         self.in_pre = False
+        self.end_whitespace = re.compile(r'[ \t\n]\Z')
 
     def reset(self):
         HTMLParser.reset(self)
@@ -47,6 +49,24 @@ class HtmlPreProcessor(HTMLParser):
         the result of it goes.
         """
         self.buffer += data
+
+    def append_endtag(self, end):
+        """Append a markdown end tag to the buffer.
+
+        Markdown is much more sensitive to whitespace than html is, so we
+        have to be careful.
+        """
+        end_white = self.end_whitespace.search(self.buffer)
+        self.buffer = self.buffer.rstrip()
+
+        # only append the end tag if there is something inside of it
+        if self.buffer.endswith(end):
+            self.buffer = self.buffer.rstrip(end)
+        else:
+            self.buffer += end
+
+        if end_white:
+            self.buffer += end_white.group(0)
 
     def handle_entityref(self, name):
         entity = "&%s;" % name
@@ -75,6 +95,10 @@ class HtmlPreProcessor(HTMLParser):
                 elif name == 'title':
                     self.link['title'] = val
             self.handle_data('[')
+        elif tag in ('em', 'i'):
+            self.handle_data('_')
+        elif tag in ('strong', 'b'):
+            self.handle_data('**')
         else:
             # pass the data through
             atts = ' '.join('%s="%s"' % (a, v) for a, v in attrs)
@@ -92,6 +116,10 @@ class HtmlPreProcessor(HTMLParser):
                 self.handle_data('](%(href)s "%(title)s") ' % self.link)
             else:
                 self.handle_data('](%s) ' % self.link['href'])
+        elif tag in ('em', 'i'):
+            self.append_endtag('_')
+        elif tag in ('strong', 'b'):
+            self.append_endtag('**')
         else:
             self.handle_data("</%s>" % tag)
 
