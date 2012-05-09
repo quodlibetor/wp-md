@@ -87,6 +87,8 @@ class HtmlPreProcessor(HTMLParser):
                     break
             else:
                 self.handle_data("\n~~~\n")
+        elif tag == 'p':
+            self.handle_data('\n')
         elif tag == 'a':
             self.link = {'title': '', 'href': ''}
             for name, val in attrs:
@@ -116,6 +118,8 @@ class HtmlPreProcessor(HTMLParser):
                 self.handle_data('](%(href)s "%(title)s") ' % self.link)
             else:
                 self.handle_data('](%s) ' % self.link['href'])
+        elif tag == 'p':
+            self.handle_data('\n')
         elif tag in ('em', 'i'):
             self.append_endtag('_')
         elif tag in ('strong', 'b'):
