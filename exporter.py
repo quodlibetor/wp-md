@@ -123,19 +123,53 @@ class HtmlPreProcessor(HTMLParser):
         else:
             self.handle_data("</%s>" % tag)
 
-def export_mynt(posts, base_dir):
-    """Write blog stuff to mynt-like files
+class Exporter(object):
+    """A class that wraps up export-logic.
 
-    Expects an iterable of dict-like objects that have the following fields:
+    This class is meant to be used as a function: init it with the source
+    file and the destination, and it will do the conversion.
 
-        - `title` <string>
-        - `tags`  <list>
-        - `content` <string>
+    Why a class? Because that's how people write extensible code nowadays.
+    Subclass this and write your own get_posts_from_* and export_to_* methods
+    and you'll be golden.
 
-    All of these should be in a format ready to write.
+    In more detail: to write an extractor, name it `get_props_from_FORMAT`
+    where FORMAT is the name of the format to extract and make sure that it
+    returns an iterable of dict-like objects that have at least the following
+    keys:
+
+        - u'date'
+        - u'author'
+        - u'content'
+        - u'title'
+        - u'status'
+        - u'tags'
+
+    To write an exporter, write something that takes that iterable of
+    post-like things and puts them in a file. You might consider using the
+    HtmlPreProcessor class defined above if you want minimal markdown-iness
+    in the generated posts.
     """
 
-    template = u"""---
+    def __init__(self, source, outdir,
+                 source_format='xml', dest_format='mynt'):
+        posts = getattr(self, 'get_posts_from_' + source_format)(source)
+        getattr(self, 'export_to_' + dest_format)(posts, outdir)
+
+    @staticmethod
+    def export_to_mynt(posts, base_dir):
+        """Write blog stuff to mynt-like files
+
+        Expects an iterable of dict-like objects that have the following fields:
+
+            - `title` <string>
+            - `tags`  <list>
+            - `content` <string>
+
+        All of these should be in a format ready to write.
+        """
+
+        template = u"""---
 layout: post.html
 title: %(title)s
 tags: %(tags)s
@@ -143,101 +177,97 @@ tags: %(tags)s
 
 %(content)s
 """
-    opj = os.path.join
+        opj = os.path.join
 
-    processor = HtmlPreProcessor()
+        processor = HtmlPreProcessor()
 
-    for post in posts:
-        if post['content'] is None:
-            continue
-        filename = post['date'] + '-' + post['title'] + '.md'
-        filename = filename.replace(' ', '-').replace('/', '+')
+        for post in posts:
+            if post['content'] is None:
+                continue
+            filename = post['date'] + '-' + post['title'] + '.md'
+            filename = filename.replace(' ', '-').replace('/', '+')
 
-        # wordpress creates drafts with statuses draft or auto-draft
-        # mynt ignores files that start with an underscore
-        if 'draft' in post['status']:
-            filename = '_' + filename
+            # wordpress creates drafts with statuses draft or auto-draft
+            # mynt ignores files that start with an underscore
+            if 'draft' in post['status']:
+                filename = '_' + filename
 
-        # yaml has weird ideas about escape chars
-        post['title'] = repr(post['title']).replace(
-            r"\'", "''").replace("\\", "")
+            # yaml has weird ideas about escape chars
+            post['title'] = repr(post['title']).replace(
+                r"\'", "''").replace("\\", "")
 
-        processor.reset()
-        processor.feed(post['content'])
-        post['content'] = processor.readmd()
+            processor.reset()
+            processor.feed(post['content'])
+            post['content'] = processor.readmd()
 
-        with open(opj(base_dir, filename), 'w') as fh:
-            out = template % post
-            fh.write(out.encode('utf-8'))
+            with open(opj(base_dir, filename), 'w') as fh:
+                out = template % post
+                fh.write(out.encode('utf-8'))
 
-def get_props_from_wp_xml(root):
-    """This is where I reimplement database joins on top of xml
+    @staticmethod
+    def get_posts_from_xml(source):
+        """This is where I reimplement database joins on top of xml
 
-    I try to be nice, and this is what I get? Sheesh. I hope someboyd who
-    doesn't have a mysql driver is grateful.
-    """
-    els = root.findall(".//table[@name='wp_posts']")
-    posts = OrderedDict()
+        I try to be nice, and this is what I get? Sheesh. I hope someboyd who
+        doesn't have a mysql driver is grateful.
+        """
+        root = ET.parse(source).getroot()
 
-    terms = {}
-    for term in root.findall(".//table[@name='wp_terms']"):
-        key = term.find("./column[@name='term_id']").text
-        tag = term.find("./column[@name='slug']").text
-        terms[key] = tag
+        els = root.findall(".//table[@name='wp_posts']")
+        posts = OrderedDict()
 
-    taxes = {} # term taxonomy is the relationship between terms and parents
-    categories  = {}
-    for taxonomy in root.findall(".//table[@name='wp_term_taxonomy']"):
-        tax = taxonomy.find("./column[@name='taxonomy']").text
-        if tax == 'post_tag':
-            key = taxonomy.find("./column[@name='term_taxonomy_id']").text
-            term_id = taxonomy.find("./column[@name='term_id']").text
-            taxes[key] = terms[term_id]
+        terms = {}
+        for term in root.findall(".//table[@name='wp_terms']"):
+            key = term.find("./column[@name='term_id']").text
+            tag = term.find("./column[@name='slug']").text
+            terms[key] = tag
 
-        elif tax == 'category':
-            key = taxonomy.find("./column[@name='term_taxonomy_id']").text
-            term_id = taxonomy.find("./column[@name='term_id']").text
-            categories[key] = terms[term_id]
+        taxes = {} # term taxonomy is the relationship between terms and parents
+        categories  = {}
+        for taxonomy in root.findall(".//table[@name='wp_term_taxonomy']"):
+            tax = taxonomy.find("./column[@name='taxonomy']").text
+            if tax == 'post_tag':
+                key = taxonomy.find("./column[@name='term_taxonomy_id']").text
+                term_id = taxonomy.find("./column[@name='term_id']").text
+                taxes[key] = terms[term_id]
 
-    all_tags = {}
-    all_tags.update(taxes)
-    all_tags.update(categories)
-    post_tags = defaultdict(list)
-    for relation in root.findall(".//table[@name='wp_term_relationships']"):
-        try:
-            obj_id  = relation.find("./column[@name='object_id']").text
-            term_id = relation.find("./column[@name='term_taxonomy_id']").text
-            term = all_tags[term_id] # should throw KeyError for links
-            post_tags[obj_id].append(term)
-        except KeyError:
-            pass
+            elif tax == 'category':
+                key = taxonomy.find("./column[@name='term_taxonomy_id']").text
+                term_id = taxonomy.find("./column[@name='term_id']").text
+                categories[key] = terms[term_id]
 
-    for el in els:
-        id = el.find("./column[@name='ID']").text
-        post_type = el.find("./column[@name='post_type']").text
-        status = el.find("./column[@name='post_status']").text,
-        if post_type == 'revision':
-            id = el.find("./column[@name='post_parent']").text
-            if status == u'inherit':
-                status = posts[id][u'status']
+        all_tags = {}
+        all_tags.update(taxes)
+        all_tags.update(categories)
+        post_tags = defaultdict(list)
+        for relation in root.findall(".//table[@name='wp_term_relationships']"):
+            try:
+                obj_id  = relation.find("./column[@name='object_id']").text
+                term_id = relation.find("./column[@name='term_taxonomy_id']").text
+                term = all_tags[term_id] # should throw KeyError for links
+                post_tags[obj_id].append(term)
+            except KeyError:
+                pass
 
-        posts[id] = {
-            u'date': el.find("./column[@name='post_date']").text,
-            u'author': el.find("./column[@name='post_author']").text,
-            u'content': el.find("./column[@name='post_content']").text,
-            u'title': el.find("./column[@name='post_title']").text,
-            u'status': status,
-            u'tags': post_tags[id]
-            }
+        for el in els:
+            id = el.find("./column[@name='ID']").text
+            post_type = el.find("./column[@name='post_type']").text
+            status = el.find("./column[@name='post_status']").text,
+            if post_type == 'revision':
+                id = el.find("./column[@name='post_parent']").text
+                if status == u'inherit':
+                    status = posts[id][u'status']
 
-        # this is currently BROKEN
-        # content = HTMLParser().unescape(posts[id]['content'])
-        # posts[id]['content'] = html2text(content)
-    return posts.itervalues()
+            posts[id] = {
+                u'date':    el.find("./column[@name='post_date']").text,
+                u'author':  el.find("./column[@name='post_author']").text,
+                u'content': el.find("./column[@name='post_content']").text,
+                u'title':   el.find("./column[@name='post_title']").text,
+                u'status':  status,
+                u'tags':    post_tags[id]
+                }
 
-def main_xml(fname, outdir):
-    root = ET.parse(fname).getroot()
-    export_mynt(get_props_from_wp_xml(root), outdir)
+        return posts.itervalues()
 
 if __name__ == '__main__':
     if len(sys.argv) < 3:
@@ -246,4 +276,4 @@ if __name__ == '__main__':
 
     thefile = sys.argv[1]
     outdir  = sys.argv[2]
-    main_xml(thefile, outdir)
+    Exporter(thefile, outdir)
