@@ -159,9 +159,19 @@ class Exporter(object):
                  source_format='xml', dest_format='mynt'):
         posts = getattr(self, 'get_posts_from_' + source_format)(source)
         getattr(self, 'export_to_' + dest_format)(posts, outdir)
+        self.processor = None
 
-    @staticmethod
-    def export_to_mynt(posts, base_dir):
+    def _markdownify(self, content):
+        """Convert some pseudo-html into reasonably pleasant text
+        """
+        if self.processor is None:
+            self.processor = HtmlPreProcessor()
+
+        self.processor.reset()
+        self.processor.feed(content)
+        return self.processor.readmd()
+
+    def export_to_mynt(self, posts, base_dir):
         """Write blog stuff to mynt-like files
 
         Expects an iterable of dict-like objects that have the following fields:
@@ -183,8 +193,6 @@ tags: %(tags)s
 """
         opj = os.path.join
 
-        processor = HtmlPreProcessor()
-
         for post in posts:
             if post['content'] is None:
                 continue
@@ -200,9 +208,7 @@ tags: %(tags)s
             post['title'] = repr(post['title']).replace(
                 r"\'", "''").replace("\\", "")
 
-            processor.reset()
-            processor.feed(post['content'])
-            post['content'] = processor.readmd()
+            post['content'] = self._markdownify(post['content'])
 
             with open(opj(base_dir, filename), 'w') as fh:
                 out = template % post
