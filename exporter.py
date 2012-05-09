@@ -78,14 +78,20 @@ class HtmlPreProcessor(HTMLParser):
         else:
             # pass the data through
             atts = ' '.join('%s="%s"' % (a, v) for a, v in attrs)
-            self.handle_data("<%s %s>" % (tag, atts))
+            if atts:
+                self.handle_data("<%s %s>" % (tag, atts))
+            else:
+                self.handle_data("<%s>" % tag)
 
     def handle_endtag(self, tag):
         if tag == 'pre':
             self.in_pre = False
             self.handle_data("\n~~~")
         elif tag == 'a':
-            self.handle_data('](%(href)s %(title)s) ' % self.link)
+            if self.link['title']:
+                self.handle_data('](%(href)s "%(title)s") ' % self.link)
+            else:
+                self.handle_data('](%s) ' % self.link['href'])
         else:
             self.handle_data("</%s>" % tag)
 
