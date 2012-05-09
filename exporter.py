@@ -40,7 +40,7 @@ class HtmlPreProcessor(HTMLParser):
         self.in_pre = False
 
     def readmd(self):
-        return self.buffer
+        return re.sub(r'\n\n\n+', '\n\n', self.buffer)
 
     def handle_data(self, data):
         """Put all of the processed data into a buffer
