@@ -165,7 +165,7 @@ class Exporter(object):
     """
 
     def __init__(self, source, outdir,
-                 source_format='xml', dest_format='mynt'):
+                 source_format='pma_xml', dest_format='mynt'):
         # create an html-to-markdown processor md_interpreter is the target
         # md_interpreter. They have different ideas about what to send to
         # pygments
@@ -250,10 +250,12 @@ tags: %(tags)s
                 fh.write(out.encode('utf-8'))
 
     @staticmethod
-    def get_posts_from_xml(source):
-        """This is where I reimplement database joins on top of xml
+    def get_posts_from_pma_xml(source):
+        """Convert PHPMyAdmin xml to nice python Dicts
 
-        I try to be nice, and this is what I get? Sheesh. I hope someboyd who
+        this is where I implement database joins on top of xml.
+
+        I try to be nice, and this is what I get? Sheesh. I hope somebody who
         doesn't have a mysql driver is grateful.
         """
         root = ET.parse(source).getroot()
@@ -322,5 +324,5 @@ if __name__ == '__main__':
     thefile = sys.argv[1]
     outdir  = sys.argv[2]
     out_format = 'mynt' if len(sys.argv) < 4 else sys.argv[3]
-    source_format = 'xml'
+    source_format = 'pma_xml'
     Exporter(thefile, outdir, source_format, out_format)
