@@ -2,7 +2,7 @@
 
 """Convert WordPress data from xml into Markdown with YAML frontmatter.
 
-    usage:    exporter.py blog.xml output_dir/
+    usage:    exporter.py blog.xml output_dir/ [output_format]
 """
 import sys
 import os
@@ -28,11 +28,12 @@ class HtmlPreProcessor(HTMLParser):
     markdown, and does't do much processing, letting `handle_data` just store
     more or less everything that we get.
     """
-    def __init__(self):
+    def __init__(self, markdown_interpreter='misaka'):
         HTMLParser.__init__(self)
         self.buffer = ""
         self.in_pre = False
         self.end_whitespace = re.compile(r'[ \t\n]\Z')
+        self.md_interpreter = markdown_interpreter
 
     def reset(self):
         HTMLParser.reset(self)
@@ -83,7 +84,15 @@ class HtmlPreProcessor(HTMLParser):
                     # pygments keys are always lowercase, this increases the
                     # chances that pre-existing languages will be recognized
                     language = attr[1].lower()
-                    self.handle_data("\n~~~ { %s }\n" % language)
+                    if (self.md_interpreter == 'misaka' or
+                        self.md_interpreter is None):
+                        self.handle_data("\n~~~ { %s }\n" % language)
+                    elif self.md_interpreter == 'markdown':
+                        self.handle_data("\n~~~\n:::%s\n" % language)
+                    else:
+                        raise Exception(
+                            "Unknown markdown interpeter: %s" %
+                            self.md_interpreter)
                     break
             else:
                 self.handle_data("\n~~~\n")
@@ -112,7 +121,7 @@ class HtmlPreProcessor(HTMLParser):
     def handle_endtag(self, tag):
         if tag == 'pre':
             self.in_pre = False
-            self.handle_data("\n~~~")
+            self.handle_data("\n~~~\n")
         elif tag == 'a':
             if self.link['title']:
                 self.handle_data('](%(href)s "%(title)s") ' % self.link)
@@ -286,4 +295,6 @@ if __name__ == '__main__':
 
     thefile = sys.argv[1]
     outdir  = sys.argv[2]
-    Exporter(thefile, outdir)
+    out_format = 'mynt' if len(sys.argv) < 4 else sys.argv[3]
+    source_format = 'xml'
+    Exporter(thefile, outdir, source_format, out_format)
