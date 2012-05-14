@@ -166,16 +166,19 @@ class Exporter(object):
 
     def __init__(self, source, outdir,
                  source_format='xml', dest_format='mynt'):
+        # create an html-to-markdown processor md_interpreter is the target
+        # md_interpreter. They have different ideas about what to send to
+        # pygments
+        md_interpreter = 'misaka' if out_format == 'mynt' else 'markdown'
+        self.processor = HtmlPreProcessor(md_interpreter)
+
+        # actually do the stuff:
         posts = getattr(self, 'get_posts_from_' + source_format)(source)
         getattr(self, 'export_to_' + dest_format)(posts, outdir)
-        self.processor = None
 
     def _markdownify(self, content):
         """Convert some pseudo-html into reasonably pleasant text
         """
-        if self.processor is None:
-            self.processor = HtmlPreProcessor()
-
         self.processor.reset()
         self.processor.feed(content)
         return self.processor.readmd()
