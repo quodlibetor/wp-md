@@ -183,6 +183,29 @@ class Exporter(object):
         self.processor.feed(content)
         return self.processor.readmd()
 
+    def export_to_nikola(self, posts, base_dir):
+        meta_template = u"""%(title)s
+%(safe_title)s
+%(date)s
+%(tags)s
+"""
+        j = os.path.join
+        for post in posts:
+            if post['content'] is None:
+                continue
+
+            t = post['safe_title'] = post['title'].replace(' ', '-').replace('/', '+')
+
+            post['date'] = post['date'].replace('-', '/')[:-3]
+            post['content'] = self._markdownify(post['content'])
+            post['tags'] = ', '.join(post['tags'])
+
+            with open(j(base_dir, t + '.meta'), 'w') as metafh:
+                metafh.write((meta_template % post).encode('utf-8'))
+
+            with open(j(base_dir, t + '.md'), 'w') as postfh:
+                postfh.write(post['content'].encode('utf-8'))
+
     def export_to_mynt(self, posts, base_dir):
         """Write blog stuff to mynt-like files
 
