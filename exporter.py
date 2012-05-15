@@ -187,7 +187,7 @@ class Exporter(object):
         meta_template = u"""%(title)s
 %(safe_title)s
 %(date)s
-%(tags)s
+%(classifiers)s
 """
         j = os.path.join
         for post in posts:
@@ -198,7 +198,7 @@ class Exporter(object):
 
             post['date'] = post['date'].replace('-', '/')[:-3]
             post['content'] = self._markdownify(post['content'])
-            post['tags'] = ', '.join(post['tags'])
+            post['classifiers'] = ', '.join(post['classifiers'])
 
             with open(j(base_dir, t + '.meta'), 'w') as metafh:
                 metafh.write((meta_template % post).encode('utf-8'))
@@ -221,7 +221,7 @@ class Exporter(object):
         template = u"""---
 layout: post.html
 title: %(title)s
-tags: %(tags)s
+tags: %(classifiers)s
 ---
 
 %(content)s
@@ -286,20 +286,36 @@ tags: %(tags)s
         all_tags = {}
         all_tags.update(taxes)
         all_tags.update(categories)
+        post_classifiers = defaultdict(list)
+        post_cats = defaultdict(list)
         post_tags = defaultdict(list)
         for relation in root.findall(".//table[@name='wp_term_relationships']"):
+            obj_id  = relation.find("./column[@name='object_id']").text
+            term_id = relation.find("./column[@name='term_taxonomy_id']").text
             try:
-                obj_id  = relation.find("./column[@name='object_id']").text
-                term_id = relation.find("./column[@name='term_taxonomy_id']").text
                 term = all_tags[term_id] # should throw KeyError for links
-                post_tags[obj_id].append(term)
+                post_classifiers[obj_id].append(term)
+            except KeyError:
+                pass
+
+            try:
+                # throw keyerror if this post doesn't have a category
+                cat = categories[term_id]
+                post_cats[obj_id].append(cat)
+            except KeyError:
+                pass
+
+            try:
+                # throw keyerror if this post doesn't have this tag
+                tag = taxes[term_id]
+                post_tags[obj_id].append(tag)
             except KeyError:
                 pass
 
         for el in els:
             id = el.find("./column[@name='ID']").text
             post_type = el.find("./column[@name='post_type']").text
-            status = el.find("./column[@name='post_status']").text,
+            status = el.find("./column[@name='post_status']").text
             if post_type == 'revision':
                 id = el.find("./column[@name='post_parent']").text
                 if status == u'inherit':
@@ -311,7 +327,9 @@ tags: %(tags)s
                 u'content': el.find("./column[@name='post_content']").text,
                 u'title':   el.find("./column[@name='post_title']").text,
                 u'status':  status,
-                u'tags':    post_tags[id]
+                u'classifiers':    post_classifiers[id],
+                u'categories': post_cats[id],
+                u'tags': post_tags[id],
                 }
 
         return posts.itervalues()
