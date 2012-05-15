@@ -183,6 +183,50 @@ class Exporter(object):
         self.processor.feed(content)
         return self.processor.readmd()
 
+    def export_to_pelican(self, posts, base_dir):
+        template = u"""Title: %(title)s
+Slug: %(slug)s
+Author: %(author)s
+Status: %(status)s
+Date: %(date)s
+Tags: %(tags)s
+Category: %(category)s
+
+%(content)s
+"""
+        j = os.path.join
+        author = raw_input('We need an author name: ')
+        for post in posts:
+            if post['content'] is None:
+                continue
+
+            post['slug'] = post['title'].lower()\
+                .replace(',', '')\
+                .replace('/', '+')\
+                .replace(' ', '-')\
+                .replace('.', '')
+
+            post['date'] = post['date'][:-3]
+            post['content'] = self._markdownify(post['content'])
+            post['author'] = author
+
+            # in pelican, each post can only be in ONE category, so put all
+            # but the first into tags
+            if len(post['categories']) > 0:
+                post['category'] = post[u'categories'][0]
+            else:
+                post['category'] = ''
+            post['tags'] = ', '.join(post[u'tags'] +
+                                     post['categories'][1:])
+
+            if post['status'] == 'publish':
+                post['status'] = 'published'
+
+            out = j(base_dir, post['slug'] + '.md')
+            with open(out, 'w') as fh:
+                print ('writing (%s) ' % post['status']) + out
+                fh.write((template % post).encode('utf-8'))
+
     def export_to_nikola(self, posts, base_dir):
         meta_template = u"""%(title)s
 %(safe_title)s
