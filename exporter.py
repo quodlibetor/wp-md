@@ -195,7 +195,6 @@ Category: %(category)s
 %(content)s
 """
         j = os.path.join
-        author = raw_input('We need an author name: ')
         for post in posts:
             if post['content'] is None:
                 continue
@@ -208,7 +207,6 @@ Category: %(category)s
 
             post['date'] = post['date'][:-3]
             post['content'] = self._markdownify(post['content'])
-            post['author'] = author
 
             # in pelican, each post can only be in ONE category, so put all
             # but the first into tags
@@ -327,6 +325,12 @@ tags: %(classifiers)s
                 term_id = taxonomy.find("./column[@name='term_id']").text
                 categories[key] = terms[term_id]
 
+        users = {}
+        for user_el in root.findall(".//table[@name='wp_users']"):
+            id  = user_el.find("./column[@name='ID']").text
+            name = user_el.find("./column[@name='display_name']").text
+            users[id] = name
+
         all_tags = {}
         all_tags.update(taxes)
         all_tags.update(categories)
@@ -358,6 +362,8 @@ tags: %(classifiers)s
 
         for el in els:
             id = el.find("./column[@name='ID']").text
+            author_id = el.find("./column[@name='post_author']").text
+            author = users[author_id]
             post_type = el.find("./column[@name='post_type']").text
             status = el.find("./column[@name='post_status']").text
             if post_type == 'revision':
@@ -367,7 +373,7 @@ tags: %(classifiers)s
 
             posts[id] = {
                 u'date':    el.find("./column[@name='post_date']").text,
-                u'author':  el.find("./column[@name='post_author']").text,
+                u'author':  author,
                 u'content': el.find("./column[@name='post_content']").text,
                 u'title':   el.find("./column[@name='post_title']").text,
                 u'status':  status,
