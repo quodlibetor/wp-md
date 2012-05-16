@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 
-"""Convert WordPress data from xml into Markdown with YAML frontmatter.
+"""Convert WordPress data from xml into Markdown files.
 
     usage:    exporter.py blog.xml output_dir/ [output_format]
+
+Where output_format is one of: nikola, mynt, pelican
+
+The default is Pelican, because it has the most information and is
+self-explanatory.
 """
 import sys
 import os
@@ -157,11 +162,15 @@ class Exporter(object):
         - u'title'
         - u'status'
         - u'tags'
+        - u'categories'
+        - u'classifiers'
+
+    And 'classifiers' is the union of 'tags' and 'categories'.
 
     To write an exporter, write something that takes that iterable of
     post-like things and puts them in a file. You might consider using the
-    HtmlPreProcessor class defined above if you want minimal markdown-iness
-    in the generated posts.
+    HtmlPreProcessor class defined above if you want the generated posts to
+    have a markdown-ish character.
     """
 
     def __init__(self, source, outdir,
@@ -391,6 +400,6 @@ if __name__ == '__main__':
 
     thefile = sys.argv[1]
     outdir  = sys.argv[2]
-    out_format = 'mynt' if len(sys.argv) < 4 else sys.argv[3]
+    out_format = 'pelican' if len(sys.argv) < 4 else sys.argv[3]
     source_format = 'pma_xml'
     Exporter(thefile, outdir, source_format, out_format)
