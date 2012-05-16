@@ -393,6 +393,41 @@ tags: %(classifiers)s
 
         return posts.itervalues()
 
+    @staticmethod
+    def get_posts_from_wprss(filename):
+        rss = ET.parse(filename).getroot()
+
+        def wp(element):
+            return u'{http://wordpress.org/export/1.1/}%s' % element
+
+        def dc(element):
+            return u'{http://purl.org/dc/elements/1.1/}%s' % element
+
+        def content(el):
+            return u'{http://purl.org/rss/1.0/modules/content/}%s' % el
+
+        for post_el in rss.findall('channel/item'):
+            post = {}
+            post['date']  = post_el.find(wp('post_date')).text
+            post['author'] = post_el.find(dc('creator')).text
+            post['content'] = post_el.find(content('encoded')).text
+            post['title'] = post_el.find('title').text
+            post['status'] = post_el.find(wp('status')).text
+            post['categories'] = []
+            post['tags'] = []
+            post['classifiers'] = []
+            for classifier in post_el.findall('category'):
+                cl = classifier.text
+                post['classifiers'].append(cl)
+                if classifier.get('domain') == 'category':
+                    post['categories'].append(cl)
+                else:
+                    # tags are the most general sort of classifier we've got
+                    # access to
+                    post['tags'].append(cl)
+
+            yield post
+
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         print __doc__
