@@ -397,12 +397,14 @@ tags: %(classifiers)s
     def get_posts_from_wprss(filename):
         rss = ET.parse(filename).getroot()
 
+        # namespaced elements are expanded according to xml rules to look
+        # like '{long/namespace}element', and for some reasona I can't create
+        # a name mapping inside of etree to allow me to access e.g.
+        # wp:element elements. Hence these namespace functions.
         def wp(element):
             return u'{http://wordpress.org/export/1.1/}%s' % element
-
         def dc(element):
             return u'{http://purl.org/dc/elements/1.1/}%s' % element
-
         def content(el):
             return u'{http://purl.org/rss/1.0/modules/content/}%s' % el
 
