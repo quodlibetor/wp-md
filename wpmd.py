@@ -109,6 +109,8 @@ class HtmlPreProcessor(HTMLParser):
                     break
             else:
                 self.handle_data("\n~~~\n")
+        elif tag == 'code':
+            self.handle_data('`')
         elif tag == 'p':
             self.handle_data('\n')
         elif tag == 'a':
@@ -135,6 +137,8 @@ class HtmlPreProcessor(HTMLParser):
         if tag == 'pre':
             self.in_pre = False
             self.handle_data("\n~~~\n")
+        elif tag == 'code':
+            self.handle_data('`')
         elif tag == 'a':
             if self.link['title']:
                 self.handle_data('](%(href)s "%(title)s") ' % self.link)
