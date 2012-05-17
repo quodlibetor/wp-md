@@ -2,12 +2,19 @@
 
 """Convert WordPress data from xml into Markdown files.
 
-    usage:    exporter.py blog.xml output_dir/ [output_format]
+The main work in here is done by the Exporter class, which does all the work
+in its ``__init__`` method, which functions as a dispatcher. Create a class
+with the correct arguments and it will do the work, see ``main()`` if you're
+curious.
 
-Where output_format is one of: nikola, mynt, pelican
+The ``HtmlPreProcessor`` class is a stupidly simple HTML->Markdown converter.
+It only converts tags that don't require state-tracking/recursion, and it
+doesn't do all of those. What it *does* do, though, is correctly extract
+`lang` attributes for syntax-highlighted code blocks, something that I don't
+think any of the other html->md converters do.
 
-The default is Pelican, because it has the most information and is
-self-explanatory.
+It's used by by the ``_markdownify`` utility method in ``Exporter``, you
+probably don't need to deal with it yourself.
 """
 import sys
 import os
@@ -169,9 +176,11 @@ class Exporter(object):
     And 'classifiers' is the union of 'tags' and 'categories'.
 
     To write an exporter, write something that takes that iterable of
-    post-like things and puts them in a file. You might consider using the
-    HtmlPreProcessor class defined above if you want the generated posts to
-    have a markdown-ish character.
+    post-like things as well as a directory and creates files with those
+    things. See the various export_to_* methods herein for examples.
+
+    There are a couple utility methods that you can use to munge up some
+    text, too.
     """
 
     def __init__(self, source, outdir,
@@ -186,6 +195,8 @@ class Exporter(object):
         posts = getattr(self, 'get_posts_from_%s' % source_format)(source)
         getattr(self, 'export_to_%s' % dest_format)(posts, outdir)
 
+############################################################################
+    # utility functions
     def _markdownify(self, content):
         """Convert some pseudo-html into reasonably pleasant text
         """
@@ -201,6 +212,8 @@ class Exporter(object):
             .replace(' ', '-')\
             .replace('.', '')
 
+############################################################################
+    # export functions
     def export_to_pelican(self, posts, base_dir):
         template = u"""Title: %(title)s
 Slug: %(slug)s
@@ -305,6 +318,8 @@ tags: %(classifiers)s
                 out = template % post
                 fh.write(out.encode('utf-8'))
 
+############################################################################
+    # import functions
     @staticmethod
     def get_posts_from_pma_xml(source):
         """Convert PHPMyAdmin xml to nice python Dicts
