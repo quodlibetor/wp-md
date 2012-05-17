@@ -12,6 +12,7 @@ self-explanatory.
 import sys
 import os
 import re
+import argparse
 from collections import OrderedDict, defaultdict
 from HTMLParser import HTMLParser
 try:
@@ -430,13 +431,47 @@ tags: %(classifiers)s
 
             yield post
 
-if __name__ == '__main__':
-    if len(sys.argv) < 3:
-        print __doc__
-        exit(1)
+def parse_args(args):
+    parser = argparse.ArgumentParser(
+        description="Convert WordPress data from on giant xml file into a "
+        "bunch of Markdown files.",
+        epilog="""The defaults have been chosen to be commonly useful if you
+        just want a readable version of your blog. Run ``%(prog)s source.xml
+        destination`` and you'll end up with a bunch of files named after
+        your blog titles.""")
 
-    thefile = sys.argv[1]
-    outdir  = sys.argv[2]
-    out_format = 'pelican' if len(sys.argv) < 4 else sys.argv[3]
-    source_format = 'pma_xml'
-    Exporter(thefile, outdir, source_format, out_format)
+    parser.add_argument('source', metavar="<blog.xml>",
+                        help="The file to convert")
+    parser.add_argument('dest', metavar="<output_folder>",
+                        help="The folder to put the converted files in")
+    parser.add_argument('--of', "--output-format",
+                        choices=("pelican", "nikola", "mynt"),
+                        default="pelican",
+                        dest="output_format",
+                        help="The output format. These match the data formats"
+                        " expected by the named static site generators.")
+    parser.add_argument('--if', "--input-format",
+                        choices=("pma_xml", "wp_rss"),
+                        default='wp_rss',
+                        dest="input_format",
+                        help="The input format: either PHPMyAdmin xml "
+                        "or WordPress eXtended RSS (v1.1). If you are "
+                        "unsure which one you have it's probably wp_rss."
+                        )
+
+    return parser.parse_args(args[1:])
+
+def main():
+    args = parse_args(sys.argv)
+
+    if not os.path.isdir(args.dest):
+        if os.path.exists(args.dest):
+            exit("Destination should be a directory, not a file.")
+
+        os.makedirs(args.dest)
+
+    Exporter(args.source, args.dest,
+             args.input_format, args.output_format)
+
+if __name__ == '__main__':
+    main()
