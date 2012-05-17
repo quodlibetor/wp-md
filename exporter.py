@@ -174,16 +174,16 @@ class Exporter(object):
     """
 
     def __init__(self, source, outdir,
-                 source_format='pma_xml', dest_format='mynt'):
+                 source_format='wp_rss', dest_format='pelican'):
         # create an html-to-markdown processor md_interpreter is the target
         # md_interpreter. They have different ideas about what to send to
         # pygments
-        md_interpreter = 'misaka' if out_format == 'mynt' else 'markdown'
+        md_interpreter = 'misaka' if dest_format == 'mynt' else 'markdown'
         self.processor = HtmlPreProcessor(md_interpreter)
 
         # actually do the stuff:
-        posts = getattr(self, 'get_posts_from_' + source_format)(source)
-        getattr(self, 'export_to_' + dest_format)(posts, outdir)
+        posts = getattr(self, 'get_posts_from_%s' % source_format)(source)
+        getattr(self, 'export_to_%s' % dest_format)(posts, outdir)
 
     def _markdownify(self, content):
         """Convert some pseudo-html into reasonably pleasant text
@@ -394,7 +394,7 @@ tags: %(classifiers)s
         return posts.itervalues()
 
     @staticmethod
-    def get_posts_from_wprss(filename):
+    def get_posts_from_wp_rss(filename):
         rss = ET.parse(filename).getroot()
 
         # namespaced elements are expanded according to xml rules to look
