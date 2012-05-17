@@ -14,6 +14,7 @@ What it is
 
 This script converts blog posts from WordPress's xml formats to one of
 various markdown-using static-site generator formats.
+(See `known output formats`_.)
 
 What that means is that you get a more human-readable version of your WordPress blogs if you run the wordpress export file through wp-md.
 
@@ -54,13 +55,19 @@ Go to WordPress' export page in the admin and download ``your-blog.xml``, then::
 
 will put a whole bunch of files in the directory ``blog-files``, creating it if it doesn't exist.
 
+Known Output Formats
+~~~~~~~~~~~~~~~~~~~~
+
 You can run wp-md with the ``--output-format`` flag to choose which static-site generator format you want your posts to be exported as:
 
-    - Nikola_
-    - Mynt_
-    - Pelican_
+- Nikola_
+- Mynt_
+- Pelican_
 
 The current default is Pelican_ because it puts the most metadata into the file, and doesn't require the date to be in the filename. If you *want* the date to be part of the filename, use the Mynt_ format.
+
+Known Input Formats
+~~~~~~~~~~~~~~~~~~~
 
 If you happen to have a PHPMyAdmin export of your database, you can use the ``--input-format`` flag to choose ``pma_xml``.
 
