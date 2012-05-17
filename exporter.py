@@ -193,6 +193,14 @@ class Exporter(object):
         self.processor.feed(content)
         return self.processor.readmd()
 
+    @staticmethod
+    def _slugify(txt):
+        return txt.lower().strip()\
+            .replace(',', '')\
+            .replace('/', '+')\
+            .replace(' ', '-')\
+            .replace('.', '')
+
     def export_to_pelican(self, posts, base_dir):
         template = u"""Title: %(title)s
 Slug: %(slug)s
@@ -209,11 +217,7 @@ Category: %(category)s
             if post['content'] is None:
                 continue
 
-            post['slug'] = post['title'].lower()\
-                .replace(',', '')\
-                .replace('/', '+')\
-                .replace(' ', '-')\
-                .replace('.', '')
+            post['slug'] = self._slugify(post['title'])
 
             post['date'] = post['date'][:-3]
             post['content'] = self._markdownify(post['content'])
@@ -246,7 +250,7 @@ Category: %(category)s
             if post['content'] is None:
                 continue
 
-            t = post['safe_title'] = post['title'].replace(' ', '-').replace('/', '+')
+            t = post['safe_title'] = self._slugify(post['title'])
 
             post['date'] = post['date'].replace('-', '/')[:-3]
             post['content'] = self._markdownify(post['content'])
@@ -284,7 +288,7 @@ tags: %(classifiers)s
             if post['content'] is None:
                 continue
             filename = post['date'] + '-' + post['title'] + '.md'
-            filename = filename.replace(' ', '-').replace('/', '+')
+            filename = self._slugify(filename)
 
             # wordpress creates drafts with statuses draft or auto-draft
             # mynt ignores files that start with an underscore
