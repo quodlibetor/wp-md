@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+# wp-md, copyright Brandon W Maister <quodlibetor@gmail.com>
+# Free to use under the MIT license: http://mit-license.org/
+# Homepage: https://github.com/quodlibetor/wp-md
+
 """Convert WordPress data from xml into Markdown files.
 
 The main work in here is done by the Exporter class, which does all the work
@@ -26,6 +30,8 @@ try:
     from xml.etree import cElementTree as ET
 except ImportError:
     from xml.etree import ElementTree as ET
+
+VERSION = '0.1'
 
 class HtmlPreProcessor(HTMLParser):
     """Replaces <pre> tags with markdown code blocks
@@ -461,7 +467,7 @@ def parse_args(args):
         epilog="""The defaults have been chosen to be commonly useful if you
         just want a readable version of your blog. Run ``%(prog)s source.xml
         destination`` and you'll end up with a bunch of files named after
-        your blog titles.""")
+        your blog titles. Home Page: http://github.com/quodlibetor/wp-md""")
 
     parser.add_argument('source', metavar="<blog.xml>",
                         help="The file to convert")
@@ -481,6 +487,10 @@ def parse_args(args):
                         "or WordPress eXtended RSS (v1.1). If you are "
                         "unsure which one you have it's probably wp_rss."
                         )
+    parser.add_argument('--version',
+                        action='version',
+                        version='%(prog)s ' + VERSION)
+
 
     return parser.parse_args(args[1:])
 
